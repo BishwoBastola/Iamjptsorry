@@ -39,5 +39,8 @@
     "logsbot": {
       "allow": true
     }
-  }
+  },
+  "commandUnload": [
+    "00_prefix.js"
+  ]
 }

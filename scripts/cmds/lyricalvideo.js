@@ -1,7 +1,7 @@
 module.exports = {
   config: {
     name: "lyricalvideo",
-    aliases: ["lv", "lyricsvideo", "lyricaledit"],
+    aliases: ["lyricseditvibe", "lyricsvideo", "lyricaledit"],
     version: "1.0",
     author: "kshitiz",
     countDown: 20,

@@ -7,7 +7,7 @@ module.exports = {
   config: {
     name: "aniquote",
     aliases: [],
-    version: "1.2",
+    version: "1.4",
     author: "Shikaki",
     countDown: 5,
     role: 0,
@@ -17,9 +17,9 @@ module.exports = {
     longDescription: {
       en: "Display a random quote for you."
     },
-    category: "🇳🇵„Fun",
+    category: "😄Fun",
     guide: {
-      en: "   {pn} aniquote"
+      en: "{pn}"
     }
   },
 
@@ -35,30 +35,37 @@ module.exports = {
       if (responseData && responseData.quote) {
         const imageUrl = responseData.quote;
 
-        // Specify the absolute path for the image file
-        const imageFileName = 'quote_image.jpg';
-        const imageFilePath = path.join(__dirname, imageFileName);
+        // Create a temporary directory if it doesn't exist
+        const tempDir = 'temp';
+        if (!fs.existsSync(tempDir)) {
+          fs.mkdirSync(tempDir);
+        }
 
-        const file = fs.createWriteStream(imageFilePath);
+        // Specify the absolute path for the temporary image file
+        const imageFileName = `aniquote_${Date.now()}.jpg`;
+        const tempImageFilePath = path.join(tempDir, imageFileName);
+
+        const file = fs.createWriteStream(tempImageFilePath);
         const request = https.get(imageUrl, function (response) {
           response.pipe(file);
           file.on('finish', function () {
             // Send the image as an attachment along with the text
             message.reply({
-              body: `Ani Quote✨`,
-              attachment: fs.createReadStream(imageFilePath)
+              body: `✨🌟✨Ani quote✨🌟✨`,
+              attachment: fs.createReadStream(tempImageFilePath)
+            }).then(() => {
+              // Close the file stream and delete the temporary image file
+              file.close();
+              fs.unlinkSync(tempImageFilePath);
             });
-
-            // Close the file stream
-            file.close();
           });
         });
       } else {
-        message.reply(`âœ¨ðŸŒŸâœ¨\n${getLang("quote", "Unable to fetch the quote or image.")}\nâœ¨ðŸŒŸâœ¨`);
+        message.reply(`✨🌟✨\n${getLang("quote", "Unable to fetch the quote or image.")}\n✨🌟✨`);
       }
     } catch (error) {
       console.error("Error fetching or processing aniquote:", error.message);
-      message.reply(`âœ¨ðŸŒŸâœ¨\n${getLang("quote", "An error occurred while fetching the aniquote.")}\nâœ¨ðŸŒŸâœ¨`);
+      message.reply(`✨🌟✨\n${getLang("quote", "An error occurred while fetching the aniquote.")}\n✨🌟✨`);
     }
   }
 };

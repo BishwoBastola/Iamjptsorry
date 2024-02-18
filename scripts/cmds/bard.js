@@ -1,148 +1,149 @@
 const axios = require("axios");
 const fs = require("fs");
-const gtts = require("gtts");
-const path = require("path");
 
 module.exports = {
-  config: {
-    name: "bard",
-    aliases: [],
-    version: "1.0",
-    author: "Arjhil x kshitiz",
-    countDown: 5,
-    role: 0,
-    shortDescription: {
-      vi: "",
-      en: ""
-    },
-    longDescription: {
-      vi: "Bard AI, Pinterest Image Search, and gTTS",
-      en: "Bard AI, Pinterest Image Search, and gTTS"
-    },
-    category: "ai",
-    guide: {
-      vi: "",
-      en: "{pn}<query>"
-    }
-  },
-  langs: {
-    vi: {
-      null: ""
-    },
-    en: {
-      null: ""
-    }
-  },
-  async onStart({ api, args, message, event }) {
-    const { threadID, messageID, type, messageReply, body } = event;
-    let question = "";
+	config: {
+		name: "bard",
+		version: "1.0",
+		author: "rehat--",
+		countDown: 5,
+		role: 0,
+		longDescription: { en: "Artificial Intelligence Google Bard" },
+		guide: { en: "{pn} <query>" },
+		category: "ai",
+	},
+	clearHistory: function () {
+		global.GoatBot.onReply.clear();
+	},
 
-    async function convertImageToText(imageURL) {
-      try {
-        const response = await axios.get(
-          `https://bard-ai.arjhilbard.repl.co/api/other/img2text?input=${encodeURIComponent(imageURL)}`
-        );
-        return response.data.extractedText;
-      } catch (error) {
-        console.error("Error converting image to text:", error);
-        return null;
-      }
-    }
+	onStart: async function ({ message, event, args, commandName }) {
+		const uid = event.senderID;
+		const prompt = args.join(" ");
 
-    function formatFont(text) {
-      const fontMapping = {
-        a: "𝖺", b: "𝖻", c: "𝖼", d: "𝖽", e: "𝖾", f: "𝖿", g: "𝗀", h: "𝗁", i: "𝗂", j: "𝗃", k: "𝗄", l: "𝗅", m: "𝗆",
-        n: "𝗇", o: "𝗈", p: "𝗉", q: "𝗊", r: "𝗋", s: "𝗌", t: "𝗍", u: "𝗎", v: "𝗏", w: "𝗐", x: "𝗑", y: "𝗒", z: "𝗓",
-        A: "𝖠", B: "𝖡", C: "𝖢", D: "𝖣", E: "𝖤", F: "𝖥", G: "𝖦", H: "𝖧", I: "𝖨", J: "𝖩", K: "𝖪", L: "𝖫", M: "𝖬",
-        N: "𝖭", O: "𝖮", P: "𝖯", Q: "𝖰", R: "𝖱", S: "𝖲", T: "𝖳", U: "𝖴", V: "𝖵", W: "𝖶", X: "𝖷", Y: "𝖸", Z: "𝖹",
-      };
+		if (!prompt) {
+			message.reply("Please enter a query.");
+			return;
+		}
 
-      let formattedText = "";
-      for (const char of text) {
-        if (char in fontMapping) {
-          formattedText += fontMapping[char];
-        } else {
-          formattedText += char;
-        }
-      }
-      return formattedText;
-    }
+		if (prompt.toLowerCase() === "clear") {
+			this.clearHistory();
+			const clear = await axios.get(`https://project-bard.onrender.com/api/bard?query=clear&uid=${uid}`);
+			message.reply(clear.data.message);
+			return;
+		}
 
-    if (type === "message_reply" && messageReply.attachments[0]?.type === "photo") {
-      const attachment = messageReply.attachments[0];
-      const imageURL = attachment.url;
-      question = await convertImageToText(imageURL);
+		if (event.type === "message_reply" && event.messageReply.attachments && event.messageReply.attachments[0].type === "photo") {
+			const photo = encodeURIComponent(event.messageReply.attachments[0].url);
+			const query = args.join(" ");
+			const url = `https://turtle-apis.onrender.com/api/gemini/img?prompt=${encodeURIComponent(query)}&url=${photo}`;
+			const response = await axios.get(url);
+			message.reply(response.data.answer);
+			return;
+		}
 
-      if (!question) {
-        api.sendMessage("❌ Failed to convert the image to text. Please try again with a clearer image.", threadID, messageID);
-        return;
-      }
-    } else {
-      question = args.join(" ").trim();
+		const apiUrl = `https://project-bard.onrender.com/api/bard?query=${encodeURIComponent(prompt)}&uid=${uid}`;
+		try {
+			const response = await axios.get(apiUrl);
+			const result = response.data;
 
-      if (!question) {
-        api.sendMessage("Please provide a question or inquiry.", threadID, messageID);
-        return;
-      }
-    }
+			let content = result.message;
+			let imageUrls = result.imageUrls;
 
-    api.sendMessage("🔎 Searching, please wait...", threadID, messageID);
+			let replyOptions = {
+				body: content,
+			};
 
-    try {
-      const bardResponse = await axios.get(`https://bard-ai.arjhilbard.repl.co/bard?ask=${encodeURIComponent(question)}`);
-      const bardData = bardResponse.data;
-      const bardMessage = bardData.message;
+			if (Array.isArray(imageUrls) && imageUrls.length > 0) {
+				const imageStreams = [];
 
-      const pinterestResponse = await axios.get(`https://api-all-1.arjhilbard.repl.co/pinterest?search=${encodeURIComponent(question)}`);
-      const pinterestImageUrls = pinterestResponse.data.data.slice(0, 6);
+				if (!fs.existsSync(`${__dirname}/cache`)) {
+					fs.mkdirSync(`${__dirname}/cache`);
+				}
 
-      const pinterestImageAttachments = [];
+				for (let i = 0; i < imageUrls.length; i++) {
+					const imageUrl = imageUrls[i];
+					const imagePath = `${__dirname}/cache/image` + (i + 1) + ".png";
 
-      const cacheDir = path.join(__dirname, 'cache');
-      if (!fs.existsSync(cacheDir)) {
-        fs.mkdirSync(cacheDir);
-      }
+					try {
+						const imageResponse = await axios.get(imageUrl, {
+							responseType: "arraybuffer",
+						});
+						fs.writeFileSync(imagePath, imageResponse.data);
+						imageStreams.push(fs.createReadStream(imagePath));
+					} catch (error) {
+						console.error("Error occurred while downloading and saving the image:", error);
+						message.reply('An error occurred.');
+					}
+				}
 
-      for (let i = 0; i < pinterestImageUrls.length; i++) {
-        const imageUrl = pinterestImageUrls[i];
-        try {
-          const imageResponse = await axios.get(imageUrl, { responseType: "arraybuffer" });
-          const imagePath = path.join(cacheDir, `pinterest_image${i + 1}.jpg`);
-          fs.writeFileSync(imagePath, Buffer.from(imageResponse.data, "binary"));
-          pinterestImageAttachments.push(fs.createReadStream(imagePath));
-        } catch (error) {
-          console.error("Error fetching Pinterest image:", error);
-        }
-      }
+				replyOptions.attachment = imageStreams;
+			}
 
-      const formattedBardAnswer = `📝 Result: ${formatFont(bardMessage)}`;
-      api.sendMessage(formattedBardAnswer, threadID);
+			message.reply(replyOptions, (err, info) => {
+				if (!err) {
+					global.GoatBot.onReply.set(info.messageID, {
+						commandName,
+						messageID: info.messageID,
+						author: event.senderID,
+					});
+				}
+			});
+		} catch (error) {
+			message.reply('An error occurred.');
+			console.error(error.message);
+		}
+	},
 
-      const gttsPath = path.join(cacheDir, 'voice.mp3');
-      const gttsInstance = new gtts(bardMessage, 'ar');
-      gttsInstance.save(gttsPath, function (error, result) {
-        if (error) {
-          console.error("Error saving gTTS:", error);
-        } else {
-          api.sendMessage({
-            body: "🗣️ Voice Answer:",
-            attachment: fs.createReadStream(gttsPath)
-          }, threadID);
-        }
-      });
+	onReply: async function ({ message, event, Reply, args }) {
+		const prompt = args.join(" ");
+		let { author, commandName, messageID } = Reply;
+		if (event.senderID !== author) return;
 
-      if (pinterestImageAttachments.length > 0) {
-        api.sendMessage(
-          {
-            attachment: pinterestImageAttachments,
-            body: `📷 Image Search Results for: ${question}  `,
-          },
-          threadID
-        );
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      api.sendMessage("❌ An error occurred while processing the request.", threadID, messageID);
-    }
-  }
+		try {
+			const apiUrl = `https://project-bard.onrender.com/api/bard?query=${encodeURIComponent(prompt)}&uid=${author}`;
+			const response = await axios.get(apiUrl);
+
+			let content = response.data.message;
+			let replyOptions = {
+				body: content,
+			};
+
+			const imageUrls = response.data.imageUrls;
+			if (Array.isArray(imageUrls) && imageUrls.length > 0) {
+				const imageStreams = [];
+
+				if (!fs.existsSync(`${__dirname}/cache`)) {
+					fs.mkdirSync(`${__dirname}/cache`);
+				}
+				for (let i = 0; i < imageUrls.length; i++) {
+					const imageUrl = imageUrls[i];
+					const imagePath = `${__dirname}/cache/image` + (i + 1) + ".png";
+
+					try {
+						const imageResponse = await axios.get(imageUrl, {
+							responseType: "arraybuffer",
+						});
+						fs.writeFileSync(imagePath, imageResponse.data);
+						imageStreams.push(fs.createReadStream(imagePath));
+					} catch (error) {
+						console.error("Error occurred while downloading and saving the image:", error);
+						message.reply('An error occurred.');
+					}
+				}
+				replyOptions.attachment = imageStreams;
+			}
+			message.reply(replyOptions, (err, info) => {
+				if (!err) {
+					global.GoatBot.onReply.set(info.messageID, {
+						commandName,
+						messageID: info.messageID,
+						author: event.senderID,
+					});
+				}
+			});
+		} catch (error) {
+			console.error(error.message);
+			message.reply("An error occurred.");
+		}
+	},
 };

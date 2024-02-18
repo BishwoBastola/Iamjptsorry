@@ -1,6 +1,6 @@
 module.exports = {
 	config: {
-			name: "hi",
+			name: "haha",
 			version: "1.0",
 			author: "Jaychris Garcia",
 			countDown: 5,
@@ -15,6 +15,6 @@ onChat: async function({
 	message,
 	getLang
 }) {
-	if (event.body && event.body.toLowerCase() == "hi") return message.reply("hello love, how can i help you?");
+	if (event.body && event.body.toLowerCase() == "hahaha") return message.reply("sanaol happy chat mo owner ko 👇https://www.facebook.com/swordigo.swordslush masaya ka lalo sa kanya HAHA");
 }
 };

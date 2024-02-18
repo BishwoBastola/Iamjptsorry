@@ -20,7 +20,7 @@ module.exports.onStart = async ({ api, event, args }) => {
       if (!args[1]) {
         return api.sendMessage("❌ Please provide an email address for the inbox.", event.threadID);
       }
-      
+
       const emailAddress = args[1];
       const inboxResponse = await axios.get(`https://tempmail-api.codersensui.repl.co/api/getmessage/${emailAddress}`);
       const messages = inboxResponse.data.messages;
